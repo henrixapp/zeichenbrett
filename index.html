@@ -1,0 +1,269 @@
+<html>
+<script type="text/javascript">
+    var socket = null;
+    var guess = "";
+    var name = "";
+    var drawing = false;
+    var canvas, ctx, flag = false,
+        prevX = 0,
+        currX = 0,
+        prevY = 0,
+        currY = 0,
+        dot_flag = false;
+    var words = [];
+
+    var x = "black",
+        y = 2;
+
+    function init() {
+        canvas = document.getElementById('can');
+        ctx = canvas.getContext("2d");
+        w = canvas.width;
+        h = canvas.height;
+
+        canvas.addEventListener("mousemove", function (e) {
+            findxy('move', e)
+        }, false);
+        canvas.addEventListener("mousedown", function (e) {
+            findxy('down', e)
+        }, false);
+        canvas.addEventListener("mouseup", function (e) {
+            findxy('up', e)
+        }, false);
+        canvas.addEventListener("mouseout", function (e) {
+            findxy('out', e)
+        }, false);
+        initSocket();
+        document.querySelector("input").addEventListener('keyup', onkeyupListener);
+    }
+
+    function initSocket() {
+        socket = new WebSocket("ws://henrix.space:8080/socket");
+        socket.onmessage = (e) => {
+            console.log(e.data);
+            if (e.data.split(":")[0] == "guess") {
+                var entry = document.createElement("li");
+                entry.innerText = e.data.split(":")[1];
+                document.getElementById("log").appendChild(entry);
+            } else if (e.data.split(":")[0] == "draw") {
+                var data = e.data.split(":")[1].split(",");
+                ctx.beginPath();
+                ctx.moveTo(data[0], data[1]);
+                ctx.lineTo(data[2], data[3]);
+                ctx.strokeStyle = data[4];
+                ctx.lineWidth = data[5];
+                ctx.stroke();
+                ctx.closePath();
+            } else if (e.data.split(":")[0] == "joined") {
+                var data = e.data.split(":")[1];
+                var entry = document.createElement("li");
+                entry.innerText = data + " joined";
+                document.getElementById("log").appendChild(entry);
+            } else if (e.data.split(":")[0] == "gameinfo") {
+                var data = e.data.split(":")[1];
+                var entry = document.createElement("li");
+                entry.innerText = data + " joined";
+                document.getElementById("log").appendChild(entry);
+            } else if (e.data.split(":")[0] == "words") {
+                var data = e.data.split(":")[1].split(",");
+                var i = 0;
+                words = data;
+                document.getElementById("words").style.display = "block";
+                data.forEach(element => {
+                    document.getElementById("w" + i).innerText = element;
+                    i++;
+                });
+                
+            } else if (e.data.split(":")[0] == "start") {
+                var data = e.data.split(":")[1];
+                var entry = document.createElement("li");
+                entry.innerText = data + " started drawing";
+                if (data == name) {
+                    drawing = true;
+                } else drawing = false;
+                document.getElementById("log").appendChild(entry);
+                ctx.clearRect(0, 0, w, h);
+            }
+            else if (e.data.split(":")[0] == "win") {
+                var data = e.data.split(":")[1];
+                var entry = document.createElement("li");
+                entry.innerText = data + " guessed correctly.";
+                document.getElementById("log").appendChild(entry);
+            }
+            else if (e.data.split("!")[0] == "ended") {
+                var data =JSON.parse(e.data.split("!")[1]);
+                var entry = document.createElement("li");
+                    entry.innerText =  `Zwischenstand`;
+                    document.getElementById("log").appendChild(entry);
+                data.forEach(element => {
+                    var entry = document.createElement("li");
+                    entry.innerText =  `${element.Name} ${element.Score}`;
+                    document.getElementById("log").appendChild(entry);
+                });
+                console.log(data);
+            }
+        }
+
+        socket.onopen = () => {
+            console.log("socket opend");
+            name = prompt("Username?")
+            socket.send(name);
+        };
+        socket.onclose = () => {
+            console.log("socket close")
+        }
+    }
+
+    function color(obj) {
+        switch (obj.id) {
+            case "green":
+                x = "green";
+                break;
+            case "blue":
+                x = "blue";
+                break;
+            case "red":
+                x = "red";
+                break;
+            case "yellow":
+                x = "yellow";
+                break;
+            case "orange":
+                x = "orange";
+                break;
+            case "black":
+                x = "black";
+                break;
+            case "white":
+                x = "white";
+                break;
+        }
+        if (x == "white") y = 14;
+        else y = 2;
+
+    }
+
+    function draw() {
+        if (drawing) {
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currX, currY);
+            //console.log(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
+            socket.send(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
+            ctx.strokeStyle = x;
+            ctx.lineWidth = y;
+            ctx.stroke();
+            ctx.closePath();
+        }
+    }
+
+    function erase() {
+        var m = confirm("Want to clear");
+        if (m) {
+            ctx.clearRect(0, 0, w, h);
+            document.getElementById("canvasimg").style.display = "none";
+        }
+    }
+
+    function save() {
+        document.getElementById("canvasimg").style.border = "2px solid";
+        var dataURL = canvas.toDataURL();
+        document.getElementById("canvasimg").src = dataURL;
+        document.getElementById("canvasimg").style.display = "inline";
+    }
+
+    function onkeyupListener(e) {
+        if (e.key == "Enter") {
+            socket.send(`guess:${document.querySelector("input").value}`)
+            document.querySelector("input").value = "";
+        }
+    }
+
+    function join() {
+        socket.send("join:" + prompt("Code?"));
+    }
+
+    function create() {
+        socket.send(`create:${prompt("Timeout?")},${prompt("Language?","en")},${prompt("code?")}`);
+    }
+
+    function start() {
+        socket.send("start")
+    }
+
+    function select(i) {
+        console.log(i);
+        socket.send(`select:${i}`);
+        document.getElementById("words").style.display = "none";
+        drawing = true;
+        document.getElementById("word").innerText = words[i];
+    }
+
+    function findxy(res, e) {
+        if (res == 'down') {
+            prevX = currX;
+            prevY = currY;
+            currX = e.clientX - canvas.offsetLeft;
+            currY = e.clientY - canvas.offsetTop;
+
+            flag = true;
+            dot_flag = true;
+            if (dot_flag) {
+                ctx.beginPath();
+                ctx.fillStyle = x;
+                ctx.fillRect(currX, currY, 2, 2);
+                ctx.closePath();
+                dot_flag = false;
+            }
+        }
+        if (res == 'up' || res == "out") {
+            flag = false;
+        }
+        if (res == 'move') {
+            if (flag) {
+                prevX = currX;
+                prevY = currY;
+                currX = e.clientX - canvas.offsetLeft;
+                currY = e.clientY - canvas.offsetTop;
+                draw();
+            }
+        }
+    }
+</script>
+
+<body onload="init()">
+    <canvas id="can" width="400" height="400" style="position:absolute;top:10%;left:10%;border:2px solid;"></canvas>
+    <div style="position:absolute;top:12%;left:43%;">Choose Color</div>
+    <div style="position:absolute;top:15%;left:45%;width:10px;height:10px;background:green;" id="green"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:15%;left:46%;width:10px;height:10px;background:blue;" id="blue"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:15%;left:47%;width:10px;height:10px;background:red;" id="red"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:17%;left:45%;width:10px;height:10px;background:yellow;" id="yellow"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:17%;left:46%;width:10px;height:10px;background:orange;" id="orange"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:17%;left:47%;width:10px;height:10px;background:black;" id="black"
+        onclick="color(this)"></div>
+    <div style="position:absolute;top:20%;left:43%;">Eraser</div>
+    <div style="position:absolute;top:22%;left:45%;width:15px;height:15px;background:white;border:2px solid;" id="white"
+        onclick="color(this)"></div>
+    <input id="guess" type="text"></input>
+    <img id="canvasimg" style="position:absolute;top:10%;left:52%;" style="display:none;">
+    <input type="button" value="save" id="btn" size="30" onclick="save()" style="position:absolute;top:55%;left:10%;">
+    <input type="button" value="clear" id="clr" size="23" onclick="erase()" style="position:absolute;top:55%;left:15%;">
+    <button onclick="join()">Join</button>
+    <button onclick="create()">create</button>
+    <button onclick="start()">Start</button>
+    <div id="word">NO SELECTED</div>
+    <div id="words" style="display: none;">
+        <button id="w0" onclick="select(0)">WORD1</button>
+        <button id="w1" onclick="select(1)">WORD2</button>
+        <button id="w2" onclick="select(2)">WORD1</button></div>
+    <span>Log:</span>
+    <ul id="log">
+    </ul>
+</body>
+
+</html>
