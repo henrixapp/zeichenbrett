@@ -87,6 +87,9 @@ func (i *socketReader) read() {
 	if command == "draw" {
 		i.broadcastToAll("draw:" + arr[1])
 	}
+	if command == "clear" && i.Game.Players[i.Game.CurrPlayer].Name == i.name {
+		i.broadcastToAll("clear")
+	}
 	if command == "guess" {
 		if i.Game != nil {
 

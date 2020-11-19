@@ -34,11 +34,11 @@
             findxy('out', e)
         }, false);
         initSocket();
-        document.querySelector("input").addEventListener('keyup', onkeyupListener);
+        document.getElementById("guess").addEventListener('keyup', onkeyupListener);
     }
 
     function initSocket() {
-        socket = new WebSocket("ws://henrix.space:8080/socket");
+        socket = new WebSocket("ws://localhost:8787/socket");
         socket.onmessage = (e) => {
             console.log(e.data);
             if (e.data.split(":")[0] == "guess") {
@@ -73,7 +73,7 @@
                     document.getElementById("w" + i).innerText = element;
                     i++;
                 });
-                
+
             } else if (e.data.split(":")[0] == "start") {
                 var data = e.data.split(":")[1];
                 var entry = document.createElement("li");
@@ -83,24 +83,28 @@
                 } else drawing = false;
                 document.getElementById("log").appendChild(entry);
                 ctx.clearRect(0, 0, w, h);
-            }
-            else if (e.data.split(":")[0] == "win") {
+            } else if (e.data.split(":")[0] == "win") {
                 var data = e.data.split(":")[1];
                 var entry = document.createElement("li");
                 entry.innerText = data + " guessed correctly.";
                 document.getElementById("log").appendChild(entry);
-            }
-            else if (e.data.split("!")[0] == "ended") {
-                var data =JSON.parse(e.data.split("!")[1]);
+            } else if (e.data.split("!")[0] == "ended") {
+                var data = JSON.parse(e.data.split("!")[1]);
                 var entry = document.createElement("li");
-                    entry.innerText =  `Zwischenstand`;
-                    document.getElementById("log").appendChild(entry);
+                entry.innerText = `Zwischenstand`;
+                document.getElementById("log").appendChild(entry);
+                document.getElementById("scoreboard").innerHTML = "";
                 data.forEach(element => {
                     var entry = document.createElement("li");
-                    entry.innerText =  `${element.Name} ${element.Score}`;
+                    entry.innerText = `${element.Name} ${element.Score}`;
+                    var entry2 = document.createElement("li");
+                    entry2.innerText = `${element.Name} ${element.Score}`;
+                    document.getElementById("scoreboard").appendChild(entry2);
                     document.getElementById("log").appendChild(entry);
                 });
                 console.log(data);
+            }else if(e.data=="clear") {
+                ctx.clearRect(0, 0, w, h);
             }
         }
 
@@ -161,6 +165,7 @@
         var m = confirm("Want to clear");
         if (m) {
             ctx.clearRect(0, 0, w, h);
+            socket.send("clear");
             document.getElementById("canvasimg").style.display = "none";
         }
     }
@@ -174,8 +179,8 @@
 
     function onkeyupListener(e) {
         if (e.key == "Enter") {
-            socket.send(`guess:${document.querySelector("input").value}`)
-            document.querySelector("input").value = "";
+            socket.send(`guess:${document.getElementById("guess").value}`)
+            document.getElementById("guess").value = "";
         }
     }
 
@@ -232,38 +237,43 @@
 </script>
 
 <body onload="init()">
-    <canvas id="can" width="400" height="400" style="position:absolute;top:10%;left:10%;border:2px solid;"></canvas>
-    <div style="position:absolute;top:12%;left:43%;">Choose Color</div>
-    <div style="position:absolute;top:15%;left:45%;width:10px;height:10px;background:green;" id="green"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:15%;left:46%;width:10px;height:10px;background:blue;" id="blue"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:15%;left:47%;width:10px;height:10px;background:red;" id="red"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:17%;left:45%;width:10px;height:10px;background:yellow;" id="yellow"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:17%;left:46%;width:10px;height:10px;background:orange;" id="orange"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:17%;left:47%;width:10px;height:10px;background:black;" id="black"
-        onclick="color(this)"></div>
-    <div style="position:absolute;top:20%;left:43%;">Eraser</div>
-    <div style="position:absolute;top:22%;left:45%;width:15px;height:15px;background:white;border:2px solid;" id="white"
-        onclick="color(this)"></div>
-    <input id="guess" type="text"></input>
-    <img id="canvasimg" style="position:absolute;top:10%;left:52%;" style="display:none;">
-    <input type="button" value="save" id="btn" size="30" onclick="save()" style="position:absolute;top:55%;left:10%;">
-    <input type="button" value="clear" id="clr" size="23" onclick="erase()" style="position:absolute;top:55%;left:15%;">
-    <button onclick="join()">Join</button>
-    <button onclick="create()">create</button>
-    <button onclick="start()">Start</button>
-    <div id="word">NO SELECTED</div>
-    <div id="words" style="display: none;">
-        <button id="w0" onclick="select(0)">WORD1</button>
-        <button id="w1" onclick="select(1)">WORD2</button>
-        <button id="w2" onclick="select(2)">WORD1</button></div>
-    <span>Log:</span>
-    <ul id="log">
-    </ul>
+    <div style="display:flex">
+        <div>
+            <canvas id="can" width="800" height="800" style="border:2px solid;"></canvas>
+            <div>Choose Color</div>
+            <div style="width:20px;height:20px;background:green;" id="green" onclick="color(this)"></div>
+            <div style="width:20px;height:20px;background:blue;" id="blue" onclick="color(this)"></div>
+            <div style="width:20px;height:20px;background:red;" id="red" onclick="color(this)"></div>
+            <div style="width:20px;height:20px;background:yellow;" id="yellow" onclick="color(this)"></div>
+            <div style="width:20px;height:20px;background:orange;" id="orange" onclick="color(this)"></div>
+            <div style="width:20px;height:20px;background:black;" id="black" onclick="color(this)"></div>
+            <div style="">Eraser</div>
+            <div style="width:15px;height:15px;background:white;border:2px solid;" id="white" onclick="color(this)">
+            </div>
+            
+        </div>
+        <div>
+            <img id="canvasimg" style="position:absolute;top:10%;left:52%;" style="display:none;">
+
+            <input type="button" value="clear" id="clr" size="23" onclick="erase()">
+            <button onclick="join()">Join</button>
+            <button onclick="create()">create</button>
+            <button onclick="start()">Start</button>
+            <div id="word">NO SELECTED</div>
+            <div>
+                <h1>Scoreboard</h1>
+                <ul id="scoreboard"></ul>
+            </div>
+            <div id="words" style="display: none;">
+                <button id="w0" onclick="select(0)">WORD1</button>
+                <button id="w1" onclick="select(1)">WORD2</button>
+                <button id="w2" onclick="select(2)">WORD3</button></div>
+            <span>Log:</span>
+            <ul id="log" style="height: 600px;overflow-y: scroll;">
+            </ul>
+            <input id="guess" type="text" style="width:100%"></input>
+        </div>
+    </div>
 </body>
 
 </html>

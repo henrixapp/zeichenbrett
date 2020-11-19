@@ -44,7 +44,7 @@ type Game struct {
 	TimeInSeconds int
 	Language      string
 	Players       []Player
-	Rounds        []Round
+	Rounds        []*Round
 	Code          string
 	CurrPlayer    int
 	//Choosing, Drawing time, over
@@ -55,6 +55,7 @@ type Game struct {
 }
 
 func (g Guess) Score(correct string, end time.Time) int {
+	log.Println(correct, g.Text)
 	if correct == g.Text {
 		return int(end.Sub(g.Time).Seconds())
 	}
@@ -114,7 +115,7 @@ func (g *Game) Join(playerName string) string {
 	return g.GameState()
 }
 func (g *Game) NewRound(word, drawer string) {
-	g.Rounds = append(g.Rounds, Round{Drawer: drawer, GuessWord: word, Guess: make([]Guess, 0), EndTime: time.Now().Add(time.Second * time.Duration(g.TimeInSeconds))})
+	g.Rounds = append(g.Rounds, &Round{Drawer: drawer, GuessWord: word, Guess: make([]Guess, 0), EndTime: time.Now().Add(time.Second * time.Duration(g.TimeInSeconds))})
 	g.State = GUESSING
 	g.BroadcastToAll("start:" + drawer)
 	time.AfterFunc(time.Duration(g.TimeInSeconds)*time.Second, func() {
@@ -127,13 +128,19 @@ func (g *Game) NewRound(word, drawer string) {
 func (g *Game) ScoreUpdate() {
 	if len(g.Rounds) > 0 {
 		r := g.Rounds[len(g.Rounds)-1]
+		log.Println(r.Winners)
+		totalScore := 0
 		for id, w := range r.Winners {
+			log.Println(w)
 			for i := range g.Players {
 				if g.Players[i].Name == w.Player {
-					g.Players[i].Score += (len(g.Players) - id) * w.Score(r.GuessWord, r.EndTime)
+					score := (len(g.Players) - id) * w.Score(r.GuessWord, r.EndTime)
+					g.Players[i].Score += score
+					totalScore += score
 				}
 			}
 		}
+		g.Players[g.CurrPlayer].Score += totalScore / len(g.Players)
 	}
 }
 func (r *Round) IsWinner(user string) bool {
@@ -167,6 +174,7 @@ func (r *Round) NewGuess(user, word string) (string, bool, bool, bool) {
 		return word, false, true, true
 	}
 	if word == r.GuessWord {
+		log.Println("word guessed")
 		r.Winners = append(r.Winners, Guess{Text: word, Time: time.Now(), Player: user})
 		return word, false, true, true
 	}
@@ -176,7 +184,7 @@ func (r *Round) NewGuess(user, word string) (string, bool, bool, bool) {
 
 //New Game generates a new game
 func (ge *GameEngine) NewGame(timeSeconds int, Language string, code string) *Game {
-	game := Game{TimeInSeconds: timeSeconds, Language: Language, Players: make([]Player, 0), Code: code, Rounds: make([]Round, 0)}
+	game := Game{TimeInSeconds: timeSeconds, Language: Language, Players: make([]Player, 0), Code: code, Rounds: make([]*Round, 0)}
 	ge.Games = append(ge.Games, &game)
 	return &game
 }
