@@ -1,281 +1,307 @@
 <html>
-    <head>
-        <title>Zeichenbrett</title>
-        <!-- Google Fonts -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
 
-<!-- CSS Reset -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+<head>
+    <title>Zeichenbrett</title>
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
 
-<!-- Milligram CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
-<script type="text/javascript">
-    var socket = null;
-    var guess = "";
-    var name = "";
-    var drawing = false;
-    var canvas, ctx, flag = false,
-        prevX = 0,
-        currX = 0,
-        prevY = 0,
-        currY = 0,
-        dot_flag = false;
-    var words = [];
+    <!-- CSS Reset -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
 
-    var x = "black",
-        y = 2;
+    <!-- Milligram CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+    <script type="text/javascript">
+        var socket = null;
+        var guess = "";
+        var name = "";
+        var drawing = false;
+        var canvas, ctx, flag = false,
+            prevX = 0,
+            currX = 0,
+            prevY = 0,
+            currY = 0,
+            dot_flag = false;
+        var words = [];
 
-    function init() {
-        canvas = document.getElementById('can');
-        ctx = canvas.getContext("2d");
-        w = canvas.width;
-        h = canvas.height;
+        var x = "black",
+            y = 2;
 
-        canvas.addEventListener("mousemove", function (e) {
-            findxy('move', e)
-        }, false);
-        canvas.addEventListener("mousedown", function (e) {
-            findxy('down', e)
-        }, false);
-        canvas.addEventListener("mouseup", function (e) {
-            findxy('up', e)
-        }, false);
-        canvas.addEventListener("mouseout", function (e) {
-            findxy('out', e)
-        }, false);
-        initSocket();
-        document.getElementById("guess").addEventListener('keyup', onkeyupListener);
-    }
+        function init() {
+            canvas = document.getElementById('can');
+            ctx = canvas.getContext("2d");
+            w = canvas.width;
+            h = canvas.height;
 
-    function initSocket() {
-        socket = new WebSocket("ws://localhost:8787/socket");
-        socket.onmessage = (e) => {
-            console.log(e.data);
-            if (e.data.split(":")[0] == "guess") {
-                var entry = document.createElement("li");
-                var infos = e.data.split(":")[1].split(",");
-                entry.innerHTML = `<b>${infos[0]}</b> ${infos.slice(1).join(',')}`;
-                document.getElementById("log").appendChild(entry);
-                var element = document.getElementById("log");
-                element.scrollTop = element.scrollHeight;
-            } else if (e.data.split(":")[0] == "draw") {
-                var data = e.data.split(":")[1].split(",");
-                ctx.beginPath();
-                ctx.moveTo(data[0], data[1]);
-                ctx.lineTo(data[2], data[3]);
-                ctx.strokeStyle = data[4];
-                ctx.lineWidth = data[5];
-                ctx.stroke();
-                ctx.closePath();
-            } else if (e.data.split(":")[0] == "joined") {
-                var data = e.data.split(":")[1];
-                var entry = document.createElement("li");
-                entry.innerHTML = "<b>"+data + "</b> joined";
-                document.getElementById("log").appendChild(entry);
-            } else if (e.data.split(":")[0] == "gameinfo") {
-                var data = JSON.parse(e.data.split(":").slice(1).join(":"));
-                document.getElementById("scoreboard").innerHTML = "";
-                data.forEach(element => {
-                    var entry2 = document.createElement("li");
-                    entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
-                    document.getElementById("scoreboard").appendChild(entry2);
-                });
-            } else if (e.data.split(":")[0] == "words") {
-                var data = e.data.split(":")[1].split(",");
-                var i = 0;
-                words = data;
-                document.getElementById("words").style.display = "block";
-                data.forEach(element => {
-                    document.getElementById("w" + i).innerText = element;
-                    i++;
-                });
+            canvas.addEventListener("mousemove", function (e) {
+                findxy('move', e)
+            }, false);
+            canvas.addEventListener("mousedown", function (e) {
+                findxy('down', e)
+            }, false);
+            canvas.addEventListener("mouseup", function (e) {
+                findxy('up', e)
+            }, false);
+            canvas.addEventListener("mouseout", function (e) {
+                findxy('out', e)
+            }, false);
+            initSocket();
+            document.getElementById("guess").addEventListener('keyup', onkeyupListener);
+        }
 
-            } else if (e.data.split(":")[0] == "start") {
-                var data = e.data.split(":")[1];
-                var entry = document.createElement("li");
-                entry.innerHTML = "<b>"+data + "</b> started drawing";
-                if (data == name) {
-                    drawing = true;
-                } else drawing = false;
-                document.getElementById("log").appendChild(entry);
-                ctx.clearRect(0, 0, w, h);
-            } else if (e.data.split(":")[0] == "win") {
-                var data = e.data.split(":")[1];
-                var entry = document.createElement("li");
-                entry.innerHTML = `<b>${data} </b>  guessed correctly.`;
-                document.getElementById("log").appendChild(entry);
-                var element = document.getElementById("log");
-                element.scrollTop = element.scrollHeight;
-            } else if (e.data.split("!")[0] == "ended") {
-                var data = JSON.parse(e.data.split("!")[1]);
-                var entry = document.createElement("li");
-                entry.innerHTML = `<h4>Zwischenstand</h4>`;
-                document.getElementById("log").appendChild(entry);
-                document.getElementById("scoreboard").innerHTML = "";
-                data.forEach(element => {
+        function initSocket() {
+            socket = new WebSocket("ws://localhost:8787/socket");
+            socket.onmessage = (e) => {
+                console.log(e.data);
+                if (e.data.split(":")[0] == "guess") {
                     var entry = document.createElement("li");
-                    entry.innerText = `<b>${element.Name}</b> ${element.Score}`;
-                    var entry2 = document.createElement("li");
-                    entry2.innerText = `<b>${element.Name}</b> ${element.Score}`;
-                    document.getElementById("scoreboard").appendChild(entry2);
+                    var infos = e.data.split(":")[1].split(",");
+                    entry.innerHTML = `<b>${infos[0]}</b> ${infos.slice(1).join(',')}`;
                     document.getElementById("log").appendChild(entry);
-                });
-                var element = document.getElementById("log");
-                element.scrollTop = element.scrollHeight;
-                console.log(data);
-            }else if(e.data=="clear") {
-                ctx.clearRect(0, 0, w, h);
-            }else if(e.data.split(":")[0]=="hint") {
-                if(!drawing) {
-                    document.getElementById("word").innerText = e.data.split(":").slice(1).join(":")
+                    var element = document.getElementById("log");
+                    element.scrollTop = element.scrollHeight;
+                } else if (e.data.split(":")[0] == "draw") {
+                    var data = e.data.split(":")[1].split(",");
+                    ctx.beginPath();
+                    ctx.lineCap = "round";
+                    ctx.moveTo(data[0], data[1]);
+                    ctx.lineTo(data[2], data[3]);
+                    ctx.strokeStyle = data[4];
+                    ctx.lineWidth = data[5];
+                    ctx.stroke();
+                    ctx.closePath();
+                } else if (e.data.split(":")[0] == "joined") {
+                    var data = e.data.split(":")[1];
+                    var entry = document.createElement("li");
+                    entry.innerHTML = "<b>" + data + "</b> joined";
+                    document.getElementById("log").appendChild(entry);
+                } else if (e.data.split(":")[0] == "gameinfo") {
+                    var data = JSON.parse(e.data.split(":").slice(1).join(":"));
+                    document.getElementById("scoreboard").innerHTML = "";
+                    data.forEach(element => {
+                        var entry2 = document.createElement("li");
+                        entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        document.getElementById("scoreboard").appendChild(entry2);
+                    });
+                } else if (e.data.split(":")[0] == "words") {
+                    var data = e.data.split(":")[1].split(",");
+                    var i = 0;
+                    words = data;
+                    document.getElementById("words").style.display = "block";
+                    data.forEach(element => {
+                        document.getElementById("w" + i).innerText = element;
+                        i++;
+                    });
+
+                } else if (e.data.split(":")[0] == "start") {
+                    var data = e.data.split(":")[1];
+                    var entry = document.createElement("li");
+                    entry.innerHTML = "<b>" + data + "</b> started drawing";
+                    if (data == name) {
+                        drawing = true;
+                    } else drawing = false;
+                    document.getElementById("log").appendChild(entry);
+                    ctx.clearRect(0, 0, w, h);
+                } else if (e.data.split(":")[0] == "win") {
+                    var data = e.data.split(":")[1];
+                    var entry = document.createElement("li");
+                    entry.innerHTML = `<b>${data} </b>  guessed correctly.`;
+                    document.getElementById("log").appendChild(entry);
+                    var element = document.getElementById("log");
+                    element.scrollTop = element.scrollHeight;
+                } else if (e.data.split("!")[0] == "ended") {
+                    var data = JSON.parse(e.data.split("!")[1]);
+                    var entry = document.createElement("li");
+                    entry.innerHTML = `<h4>Zwischenstand</h4>`;
+                    document.getElementById("log").appendChild(entry);
+                    document.getElementById("scoreboard").innerHTML = "";
+                    data.forEach(element => {
+                        var entry = document.createElement("li");
+                        entry.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        var entry2 = document.createElement("li");
+                        entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        document.getElementById("scoreboard").appendChild(entry2);
+                        document.getElementById("log").appendChild(entry);
+                    });
+                    var element = document.getElementById("log");
+                    element.scrollTop = element.scrollHeight;
+                    console.log(data);
+                } else if (e.data == "clear") {
+                    ctx.clearRect(0, 0, w, h);
+                } else if (e.data.split(":")[0] == "hint") {
+                    if (!drawing) {
+                        document.getElementById("word").innerText = e.data.split(":").slice(1).join(":")
+                    }
                 }
             }
-        }
 
-        socket.onopen = () => {
-            console.log("socket opend");
-            name = prompt("Username?")
-            socket.send(name);
-        };
-        socket.onclose = () => {
-            console.log("socket close")
-        }
-    }
-
-    function color(obj) {
-        switch (obj.id) {
-            case "green":
-                x = "green";
-                break;
-            case "blue":
-                x = "blue";
-                break;
-            case "red":
-                x = "red";
-                break;
-            case "yellow":
-                x = "yellow";
-                break;
-            case "orange":
-                x = "orange";
-                break;
-            case "black":
-                x = "black";
-                break;
-            case "white":
-                x = "white";
-                break;
-        }
-        if (x == "white") y = 14;
-        else y = 2;
-
-    }
-
-    function draw() {
-        if (drawing) {
-            ctx.beginPath();
-            ctx.moveTo(prevX, prevY);
-            ctx.lineTo(currX, currY);
-            //console.log(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
-            socket.send(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
-            ctx.strokeStyle = x;
-            ctx.lineWidth = y;
-            ctx.stroke();
-            ctx.closePath();
-        }
-    }
-
-    function erase() {
-        var m = confirm("Want to clear");
-        if (m) {
-            ctx.clearRect(0, 0, w, h);
-            socket.send("clear");
-            document.getElementById("canvasimg").style.display = "none";
-        }
-    }
-
-    function save() {
-        document.getElementById("canvasimg").style.border = "2px solid";
-        var dataURL = canvas.toDataURL();
-        document.getElementById("canvasimg").src = dataURL;
-        document.getElementById("canvasimg").style.display = "inline";
-    }
-
-    function onkeyupListener(e) {
-        if (e.key == "Enter") {
-            socket.send(`guess:${document.getElementById("guess").value}`)
-            document.getElementById("guess").value = "";
-        }
-    }
-
-    function join() {
-        socket.send("join:" + prompt("Code?"));
-    }
-
-    function create() {
-        socket.send(`create:${prompt("Timeout?")},${prompt("Language?","en")},${prompt("code?")}`);
-    }
-
-    function start() {
-        socket.send("start")
-    }
-
-    function select(i) {
-        console.log(i);
-        socket.send(`select:${i}`);
-        document.getElementById("words").style.display = "none";
-        drawing = true;
-        document.getElementById("word").innerText = words[i];
-    }
-
-    function findxy(res, e) {
-        if (res == 'down') {
-            prevX = currX;
-            prevY = currY;
-            currX = e.clientX - canvas.offsetLeft;
-            currY = e.clientY - canvas.offsetTop;
-
-            flag = true;
-            dot_flag = true;
-            if (dot_flag) {
-                ctx.beginPath();
-                ctx.fillStyle = x;
-                ctx.fillRect(currX, currY, 2, 2);
-                ctx.closePath();
-                dot_flag = false;
+            socket.onopen = () => {
+                console.log("socket opend");
+                name = prompt("Username?")
+                socket.send(name);
+            };
+            socket.onclose = () => {
+                console.log("socket close")
             }
         }
-        if (res == 'up' || res == "out") {
-            flag = false;
+
+        function color(obj) {
+            switch (obj.id) {
+                case "green":
+                    x = "green";
+                    break;
+                case "blue":
+                    x = "blue";
+                    break;
+                case "red":
+                    x = "red";
+                    break;
+                case "yellow":
+                    x = "yellow";
+                    break;
+                case "orange":
+                    x = "orange";
+                    break;
+                case "black":
+                    x = "black";
+                    break;
+                case "white":
+                    x = "white";
+                    break;
+            }
+            if (x == "white") y = 14;
+            else y = document.getElementById("diameterRange").value;
+
         }
-        if (res == 'move') {
-            if (flag) {
+
+        function draw() {
+            if (drawing) {
+                ctx.beginPath();
+                ctx.lineCap = "round";
+                ctx.moveTo(prevX, prevY);
+                ctx.lineTo(currX, currY);
+                y = document.getElementById("diameterRange").value;
+                //console.log(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
+                socket.send(`draw:${prevX},${prevY},${currX},${currY},${x},${y}`);
+                ctx.strokeStyle = x;
+                ctx.lineWidth = y;
+                ctx.stroke();
+                ctx.closePath();
+            }
+        }
+
+        function erase() {
+            var m = confirm("Want to clear");
+            if (m) {
+                ctx.clearRect(0, 0, w, h);
+                socket.send("clear");
+                document.getElementById("canvasimg").style.display = "none";
+            }
+        }
+
+        function save() {
+            document.getElementById("canvasimg").style.border = "2px solid";
+            var dataURL = canvas.toDataURL();
+            document.getElementById("canvasimg").src = dataURL;
+            document.getElementById("canvasimg").style.display = "inline";
+        }
+
+        function onkeyupListener(e) {
+            if (e.key == "Enter") {
+                socket.send(`guess:${document.getElementById("guess").value}`)
+                document.getElementById("guess").value = "";
+            }
+        }
+
+        function join() {
+            socket.send("join:" + prompt("Code?"));
+        }
+
+        function create() {
+            socket.send(`create:${prompt("Timeout?")},${prompt("Language?","en")},${prompt("code?")}`);
+        }
+
+        function start() {
+            socket.send("start")
+        }
+
+        function select(i) {
+            console.log(i);
+            socket.send(`select:${i}`);
+            document.getElementById("words").style.display = "none";
+            drawing = true;
+            document.getElementById("word").innerText = words[i];
+        }
+
+        function findxy(res, e) {
+            if (res == 'down') {
                 prevX = currX;
                 prevY = currY;
                 currX = e.clientX - canvas.offsetLeft;
                 currY = e.clientY - canvas.offsetTop;
-                draw();
+
+                flag = true;
+                dot_flag = true;
+                if (dot_flag) {
+                    ctx.beginPath();
+                    ctx.fillStyle = x;
+                    ctx.fillRect(currX, currY, 2, 2);
+                    ctx.closePath();
+                    dot_flag = false;
+                }
+            }
+            if (res == 'up' || res == "out") {
+                flag = false;
+            }
+            if (res == 'move') {
+                if (flag) {
+                    prevX = currX;
+                    prevY = currY;
+                    currX = e.clientX - canvas.offsetLeft;
+                    currY = e.clientY - canvas.offsetTop;
+                    draw();
+                }
             }
         }
-    }
-</script>
+    </script>
+    <style type="text/css">
+    /* The slider itself */
+.slider {
+  -webkit-appearance: none;  /* Override default CSS styles */
+  appearance: none;
+  width: 1000px; /* Full-width */
+  height: 25px; /* Specified height */
+  background: #d3d3d3; /* Grey background */
+  outline: none; /* Remove outline */
+  opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+  -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+  transition: opacity .2s;
+}
+</style>
 </head>
+
 <body onload="init()">
     <h1>Zeichenbrett</h1>
     <div class="row">
         <div class="column">
-            <canvas id="can" width="800" height="800" style="border:2px solid;"></canvas>
-            <div>Choose Color</div>
-            <div style="width:20px;height:20px;background:green;" id="green" onclick="color(this)"></div>
-            <div style="width:20px;height:20px;background:blue;" id="blue" onclick="color(this)"></div>
-            <div style="width:20px;height:20px;background:red;" id="red" onclick="color(this)"></div>
-            <div style="width:20px;height:20px;background:yellow;" id="yellow" onclick="color(this)"></div>
-            <div style="width:20px;height:20px;background:orange;" id="orange" onclick="color(this)"></div>
-            <div style="width:20px;height:20px;background:black;" id="black" onclick="color(this)"></div>
-            <div style="">Eraser</div>
-            <div style="width:15px;height:15px;background:white;border:2px solid;" id="white" onclick="color(this)">
+            <canvas id="can" width="1000" height="800" style="border:2px solid;"></canvas>
+            <div class="row">
+                <div class="column">
+                    <div>Choose Color</div>
+                    <div class="button" style="background:green;" id="green" onclick="color(this)"></div>
+                    <div class="button"  style="background:blue;" id="blue" onclick="color(this)"></div>
+                    <div class="button"  style="background:red;" id="red" onclick="color(this)"></div>
+                    <div class="button"  style="background:yellow;" id="yellow" onclick="color(this)"></div>
+                    <div class="button"  style="background:orange;" id="orange" onclick="color(this)"></div>
+                    <div class="button"  style="background:black;" id="black" onclick="color(this)"></div>
+                    <div class="button" >Eraser</div>
+                    <div class="button" style="background:white;border:4px solid;" id="white"
+                        onclick="color(this)">
+                    </div>
+                
+                    <label>Size</label>
+                    <input type="range" min="1" max="100" value="2" class="slider" id="diameterRange">
+                  </div>
             </div>
-            
         </div>
         <div class="column">
             <img id="canvasimg" style="position:absolute;top:10%;left:52%;" style="display:none;">
