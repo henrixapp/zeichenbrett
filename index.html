@@ -1,4 +1,14 @@
 <html>
+    <head>
+        <title>Zeichenbrett</title>
+        <!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+
+<!-- CSS Reset -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+
+<!-- Milligram CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
 <script type="text/javascript">
     var socket = null;
     var guess = "";
@@ -43,8 +53,11 @@
             console.log(e.data);
             if (e.data.split(":")[0] == "guess") {
                 var entry = document.createElement("li");
-                entry.innerText = e.data.split(":")[1];
+                var infos = e.data.split(":")[1].split(",");
+                entry.innerHTML = `<b>${infos[0]}</b> ${infos.slice(1).join(',')}`;
                 document.getElementById("log").appendChild(entry);
+                var element = document.getElementById("log");
+                element.scrollTop = element.scrollHeight;
             } else if (e.data.split(":")[0] == "draw") {
                 var data = e.data.split(":")[1].split(",");
                 ctx.beginPath();
@@ -57,13 +70,16 @@
             } else if (e.data.split(":")[0] == "joined") {
                 var data = e.data.split(":")[1];
                 var entry = document.createElement("li");
-                entry.innerText = data + " joined";
+                entry.innerHTML = "<b>"+data + "</b> joined";
                 document.getElementById("log").appendChild(entry);
             } else if (e.data.split(":")[0] == "gameinfo") {
-                var data = e.data.split(":")[1];
-                var entry = document.createElement("li");
-                entry.innerText = data + " joined";
-                document.getElementById("log").appendChild(entry);
+                var data = JSON.parse(e.data.split(":").slice(1).join(":"));
+                document.getElementById("scoreboard").innerHTML = "";
+                data.forEach(element => {
+                    var entry2 = document.createElement("li");
+                    entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                    document.getElementById("scoreboard").appendChild(entry2);
+                });
             } else if (e.data.split(":")[0] == "words") {
                 var data = e.data.split(":")[1].split(",");
                 var i = 0;
@@ -77,7 +93,7 @@
             } else if (e.data.split(":")[0] == "start") {
                 var data = e.data.split(":")[1];
                 var entry = document.createElement("li");
-                entry.innerText = data + " started drawing";
+                entry.innerHTML = "<b>"+data + "</b> started drawing";
                 if (data == name) {
                     drawing = true;
                 } else drawing = false;
@@ -86,25 +102,33 @@
             } else if (e.data.split(":")[0] == "win") {
                 var data = e.data.split(":")[1];
                 var entry = document.createElement("li");
-                entry.innerText = data + " guessed correctly.";
+                entry.innerHTML = `<b>${data} </b>  guessed correctly.`;
                 document.getElementById("log").appendChild(entry);
+                var element = document.getElementById("log");
+                element.scrollTop = element.scrollHeight;
             } else if (e.data.split("!")[0] == "ended") {
                 var data = JSON.parse(e.data.split("!")[1]);
                 var entry = document.createElement("li");
-                entry.innerText = `Zwischenstand`;
+                entry.innerHTML = `<h4>Zwischenstand</h4>`;
                 document.getElementById("log").appendChild(entry);
                 document.getElementById("scoreboard").innerHTML = "";
                 data.forEach(element => {
                     var entry = document.createElement("li");
-                    entry.innerText = `${element.Name} ${element.Score}`;
+                    entry.innerText = `<b>${element.Name}</b> ${element.Score}`;
                     var entry2 = document.createElement("li");
-                    entry2.innerText = `${element.Name} ${element.Score}`;
+                    entry2.innerText = `<b>${element.Name}</b> ${element.Score}`;
                     document.getElementById("scoreboard").appendChild(entry2);
                     document.getElementById("log").appendChild(entry);
                 });
+                var element = document.getElementById("log");
+                element.scrollTop = element.scrollHeight;
                 console.log(data);
             }else if(e.data=="clear") {
                 ctx.clearRect(0, 0, w, h);
+            }else if(e.data.split(":")[0]=="hint") {
+                if(!drawing) {
+                    document.getElementById("word").innerText = e.data.split(":").slice(1).join(":")
+                }
             }
         }
 
@@ -235,10 +259,11 @@
         }
     }
 </script>
-
+</head>
 <body onload="init()">
-    <div style="display:flex">
-        <div>
+    <h1>Zeichenbrett</h1>
+    <div class="row">
+        <div class="column">
             <canvas id="can" width="800" height="800" style="border:2px solid;"></canvas>
             <div>Choose Color</div>
             <div style="width:20px;height:20px;background:green;" id="green" onclick="color(this)"></div>
@@ -252,16 +277,16 @@
             </div>
             
         </div>
-        <div>
+        <div class="column">
             <img id="canvasimg" style="position:absolute;top:10%;left:52%;" style="display:none;">
 
             <input type="button" value="clear" id="clr" size="23" onclick="erase()">
             <button onclick="join()">Join</button>
             <button onclick="create()">create</button>
             <button onclick="start()">Start</button>
-            <div id="word">NO SELECTED</div>
+            <h3>Word:<span id="word" style="letter-spacing: 10px;"></span></h3>
             <div>
-                <h1>Scoreboard</h1>
+                <h2>Scoreboard</h2>
                 <ul id="scoreboard"></ul>
             </div>
             <div id="words" style="display: none;">
@@ -269,8 +294,8 @@
                 <button id="w1" onclick="select(1)">WORD2</button>
                 <button id="w2" onclick="select(2)">WORD3</button></div>
             <span>Log:</span>
-            <ul id="log" style="height: 600px;overflow-y: scroll;">
-            </ul>
+            <dl id="log" style="height: 600px;overflow-y: scroll;">
+            </dl>
             <input id="guess" type="text" style="width:100%"></input>
         </div>
     </div>

@@ -112,16 +112,17 @@ func (i *socketReader) read() {
 		//i.writeMsg("", .GameState())
 		i.Game = gameEngine.NewGame(time, t[1], t[2])
 		i.Game.Savedsocketreader = append(i.Game.Savedsocketreader, i)
-		i.Game.Join(i.name)
+		i.Game.Join(i, i.name)
 		i.broadcastToAll("created")
 	}
 	if command == "join" {
-		g, _ := gameEngine.Join(arr[1], i.name)
+		g, _ := gameEngine.Join(i, arr[1], i.name)
 		i.Game = g
 		i.Game.Savedsocketreader = append(i.Game.Savedsocketreader, i)
 
 		log.Println("joined:" + i.name)
 		i.writeMsg("", "gameinfo:"+i.Game.GameState())
+		i.Game.BroadcastToAll("gameinfo:" + i.Game.GameState())
 		i.broadcastToAll("joined:" + i.name)
 	}
 	if command == "start" {

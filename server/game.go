@@ -3,9 +3,11 @@ package server
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -62,11 +64,11 @@ func (g Guess) Score(correct string, end time.Time) int {
 	return 0
 }
 
-func loadWords(filename string) []string {
+func loadWords(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 
 	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
+		return []string{}, fmt.Errorf("failed opening file: %s", err)
 	}
 
 	scanner := bufio.NewScanner(file)
@@ -76,12 +78,20 @@ func loadWords(filename string) []string {
 	for scanner.Scan() {
 		txtlines = append(txtlines, scanner.Text())
 	}
-	return txtlines
+	return txtlines, nil
 }
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	Words = make(map[string][]string)
-	Words["en"] = loadWords("en.txt")
+	var err error
+	Words["en"], err = loadWords("en.txt")
+	if err != nil {
+		log.Println(err)
+	}
+	Words["de"], err = loadWords("de.txt")
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (g *Game) Start() {
@@ -105,9 +115,15 @@ func (g *Game) SelectAndStart(player string, i int) {
 	}
 }
 
-func (g *Game) Join(playerName string) string {
+func (g *Game) Join(socket *socketReader, playerName string) string {
 	for _, p := range g.Players {
 		if p.Name == playerName {
+			//remove old socket
+			for i, s := range g.Savedsocketreader {
+				if s.name == playerName {
+					g.Savedsocketreader[i] = socket
+				}
+			}
 			return g.GameState()
 		}
 	}
@@ -118,6 +134,7 @@ func (g *Game) NewRound(word, drawer string) {
 	g.Rounds = append(g.Rounds, &Round{Drawer: drawer, GuessWord: word, Guess: make([]Guess, 0), EndTime: time.Now().Add(time.Second * time.Duration(g.TimeInSeconds))})
 	g.State = GUESSING
 	g.BroadcastToAll("start:" + drawer)
+	g.BroadcastToAll("hint:" + strings.Repeat("_", len(word)))
 	time.AfterFunc(time.Duration(g.TimeInSeconds)*time.Second, func() {
 		g.ScoreUpdate()
 		g.BroadcastToAll("ended!" + g.GameState())
@@ -140,7 +157,9 @@ func (g *Game) ScoreUpdate() {
 				}
 			}
 		}
-		g.Players[g.CurrPlayer].Score += totalScore / len(g.Players)
+		if len(g.Players) > 1 {
+			g.Players[g.CurrPlayer].Score += totalScore / (len(g.Players) - 1)
+		}
 	}
 }
 func (r *Round) IsWinner(user string) bool {
@@ -189,10 +208,10 @@ func (ge *GameEngine) NewGame(timeSeconds int, Language string, code string) *Ga
 	return &game
 }
 
-func (ge *GameEngine) Join(game string, user string) (*Game, string) {
+func (ge *GameEngine) Join(socket *socketReader, game string, user string) (*Game, string) {
 	for i := range ge.Games {
 		if ge.Games[i].Code == game {
-			return ge.Games[i], ge.Games[i].Join(user)
+			return ge.Games[i], ge.Games[i].Join(socket, user)
 		}
 	}
 	return nil, ""
