@@ -1,6 +1,5 @@
 - [x] verschiedene Lobbys
-- [ ] Festlegen einer eigenen Wortliste oder wählen zwischen verschiedenen Wörterbüchern
-- [ ] rejoin
+- [x] Festlegen einer eigenen Wortliste oder wählen zwischen verschiedenen Wörterbüchern
 - [ ] Zeit verkürzt sich, wenn der erste richtig errät
 - [ ] Verschiedene Farben, Löschfunktion für letztes Element und nicht nur radierer.
 - [ ] Formen (bestenfalls optional) (Dreieck, Kreis, Linie, Rechteck)....
@@ -8,10 +7,10 @@
 - [ ] Custom Words
 - [ ] Punktzahl equals
 - [ ] Timer für Wörterauswahl
-- [ ] Chat nach unten scrollen
-- [ ] Stiftgrößen
+- [x] Chat nach unten scrollen
+- [x] Stiftgrößen
 - [ ] Votekick
-- [ ] Rejoin
+- [x] Rejoin
 
 
 -  deutsches Wörterbuch `wget http://www.netzmafia.de/software/wordlists/deutsch.txt`

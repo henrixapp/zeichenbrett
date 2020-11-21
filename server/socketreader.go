@@ -43,10 +43,11 @@ func SocketReaderCreate(w http.ResponseWriter, r *http.Request) {
 
 //socketReader struct
 type socketReader struct {
-	con   *websocket.Conn
-	mode  int
-	name  string
-	score int
+	con       *websocket.Conn
+	mode      int
+	name      string
+	score     int
+	KickScore int
 	//Game can be null
 	Game *Game
 }
@@ -114,6 +115,7 @@ func (i *socketReader) read() {
 		i.Game.Savedsocketreader = append(i.Game.Savedsocketreader, i)
 		i.Game.Join(i, i.name)
 		i.broadcastToAll("created")
+		i.Game.BroadcastToAll("gameinfo:" + i.Game.GameState())
 	}
 	if command == "join" {
 		g, _ := gameEngine.Join(i, arr[1], i.name)
@@ -135,6 +137,10 @@ func (i *socketReader) read() {
 			time, _ := strconv.Atoi(arr[1])
 			i.Game.SelectAndStart(i.name, time)
 		}
+	}
+	if command == "kick" {
+		i.Game.Kick(arr[1])
+		i.Game.BroadcastToAll("kicked:" + i.name + "," + arr[1])
 	}
 	log.Println(i.name + " " + string(b))
 }

@@ -117,10 +117,11 @@ func (g *Game) NewWords() {
 	g.Savedsocketreader[g.CurrPlayer].writeMsg("", "words:"+w1+","+w2+","+w3)
 	g.Words = []string{w1, w2, w3}
 	g.State = CHOOSING
+	g.BroadcastToAll("choosing:" + g.Savedsocketreader[g.CurrPlayer].name)
 }
 
 func (g *Game) SelectAndStart(player string, i int) {
-	if g.State == CHOOSING && g.Players[g.CurrPlayer].Name == player {
+	if g.State == CHOOSING && g.Savedsocketreader[g.CurrPlayer].name == player {
 		g.NewRound(g.Words[i], player)
 	}
 }
@@ -142,14 +143,28 @@ func (g *Game) Join(socket *socketReader, playerName string) string {
 }
 func (g *Game) NewRound(word, drawer string) {
 	g.Rounds = append(g.Rounds, &Round{Drawer: drawer, GuessWord: word, Guess: make([]Guess, 0), EndTime: time.Now().Add(time.Second * time.Duration(g.TimeInSeconds))})
+	round := len(g.Rounds)
 	g.State = GUESSING
-	g.BroadcastToAll("start:" + drawer)
+	g.BroadcastToAll("start:" + drawer + "," + fmt.Sprint(g.TimeInSeconds))
 	g.BroadcastToAll("hint:" + strings.Repeat("_", len(word)))
+	time.AfterFunc(time.Duration(g.TimeInSeconds/2), func() {
+		if len(g.Rounds) == round && g.State == GUESSING {
+			hint := []rune(strings.Repeat("_", len(word)))
+			for i := 0; i < (len(word)/10 + 1); i++ {
+				pos := rand.Intn(len(word))
+				char := word[pos]
+				hint[pos] = rune(char)
+			}
+			g.BroadcastToAll("hint:" + string(hint))
+		}
+	})
 	time.AfterFunc(time.Duration(g.TimeInSeconds)*time.Second, func() {
-		g.ScoreUpdate()
-		g.BroadcastToAll("ended!" + g.GameState())
-		g.CurrPlayer = (g.CurrPlayer + 1) % len(g.Players)
-		g.NewWords()
+		if len(g.Rounds) == round && g.State == GUESSING {
+			g.ScoreUpdate()
+			g.BroadcastToAll("ended!" + g.GameState())
+			g.CurrPlayer = (g.CurrPlayer + 1) % len(g.Players)
+			g.NewWords()
+		}
 	})
 }
 func (g *Game) ScoreUpdate() {
@@ -185,30 +200,29 @@ func (g *Game) BroadcastToAll(text string) {
 		i.writeMsg("", text)
 	}
 }
-func (g *Game) NewGuess(name string, word string) (string, bool, bool, bool) {
+func (g *Game) NewGuess(user string, word string) (string, bool, bool, bool) {
 	if len(g.Rounds) > 0 {
 		r := g.Rounds[len(g.Rounds)-1]
 		if time.Now().Before(r.EndTime) {
-			return r.NewGuess(name, word)
-		} else {
+			if r.IsWinner(user) || user == r.Drawer {
+				return word, false, true, false
+			}
+			if word == r.GuessWord {
+				log.Println("word guessed")
+				r.Winners = append(r.Winners, Guess{Text: word, Time: time.Now(), Player: user})
+				if len(r.Winners) == len(g.Players)-1 {
+					g.ScoreUpdate()
+					g.BroadcastToAll("ended!" + g.GameState())
+					g.CurrPlayer = (g.CurrPlayer + 1) % len(g.Players)
+					g.NewWords()
+				}
+				return word, false, true, true
+			}
+			r.Guess = append(r.Guess, Guess{Text: word, Time: time.Now(), Player: user})
+			return word, true, true, false
 		}
 	}
 	return word, true, false, false
-}
-
-//1. bool means broadcast
-//bool means broadcast to all
-func (r *Round) NewGuess(user, word string) (string, bool, bool, bool) {
-	if r.IsWinner(user) || user == r.Drawer {
-		return word, false, true, true
-	}
-	if word == r.GuessWord {
-		log.Println("word guessed")
-		r.Winners = append(r.Winners, Guess{Text: word, Time: time.Now(), Player: user})
-		return word, false, true, true
-	}
-	r.Guess = append(r.Guess, Guess{Text: word, Time: time.Now(), Player: user})
-	return word, true, true, false
 }
 
 //New Game generates a new game
@@ -233,4 +247,22 @@ func (g *Game) GameState() string {
 		log.Println(e)
 	}
 	return string(bytes)
+}
+
+func (g *Game) Kick(name string) {
+	for i, sock := range g.Savedsocketreader {
+		if sock.name == name {
+			g.Savedsocketreader[i] = g.Savedsocketreader[len(g.Savedsocketreader)-1]
+			g.Savedsocketreader = g.Savedsocketreader[:len(g.Savedsocketreader)-1]
+
+			break
+		}
+	}
+	for i, pl := range g.Players {
+		if pl.Name == name {
+			g.Players[i] = g.Players[len(g.Players)-1]
+			g.Players = g.Players[:len(g.Players)-1]
+		}
+	}
+	g.BroadcastToAll("gameinfo:" + g.GameState())
 }

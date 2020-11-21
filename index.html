@@ -22,16 +22,23 @@
             currY = 0,
             dot_flag = false;
         var words = [];
-
+        var timer = 0;
         var x = "black",
             y = 2;
+        setInterval(function () {
+            if (timer > 0) {
+                timer -= 1;
+            }
+            document.getElementById("timer").innerText = `${timer} s`;
+        }, 1000);
 
         function init() {
             canvas = document.getElementById('can');
             ctx = canvas.getContext("2d");
-            canvas.height = window.innerHeight *0.66;
-            canvas.width =  canvas.height*3/2;
-            
+            canvas.height = window.innerHeight * 0.66;
+            canvas.width = canvas.height * 3 / 2;
+            document.getElementById("log").style = `height:${canvas.height*0.5}px;overflow-y:scroll`
+
             w = canvas.width;
             h = canvas.height;
 
@@ -55,37 +62,39 @@
             socket = new WebSocket("ws://localhost:8787/socket");
             socket.onmessage = (e) => {
                 console.log(e.data);
-                if (e.data.split(":")[0] == "guess") {
+                var command = e.data.split(":")[0];
+                if (command == "guess") {
                     var entry = document.createElement("li");
                     var infos = e.data.split(":")[1].split(",");
                     entry.innerHTML = `<b>${infos[0]}</b> ${infos.slice(1).join(',')}`;
                     document.getElementById("log").appendChild(entry);
                     var element = document.getElementById("log");
                     element.scrollTop = element.scrollHeight;
-                } else if (e.data.split(":")[0] == "draw") {
+                } else if (command == "draw") {
                     var data = e.data.split(":")[1].split(",");
                     ctx.beginPath();
                     ctx.lineCap = "round";
-                    ctx.moveTo(data[0]*w, data[1]*h);
-                    ctx.lineTo(data[2]*w, data[3]*h);
+                    ctx.moveTo(data[0] * w, data[1] * h);
+                    ctx.lineTo(data[2] * w, data[3] * h);
                     ctx.strokeStyle = data[4];
                     ctx.lineWidth = data[5];
                     ctx.stroke();
                     ctx.closePath();
-                } else if (e.data.split(":")[0] == "joined") {
+                } else if (command == "joined") {
                     var data = e.data.split(":")[1];
                     var entry = document.createElement("li");
                     entry.innerHTML = "<b>" + data + "</b> joined";
                     document.getElementById("log").appendChild(entry);
-                } else if (e.data.split(":")[0] == "gameinfo") {
+                } else if (command == "gameinfo") {
                     var data = JSON.parse(e.data.split(":").slice(1).join(":"));
                     document.getElementById("scoreboard").innerHTML = "";
                     data.forEach(element => {
                         var entry2 = document.createElement("li");
-                        entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        entry2.innerHTML =
+                            `<b>${element.Name}</b> ${element.Score} <button onclick="kick('${element.Name}')">KICK</button>`;
                         document.getElementById("scoreboard").appendChild(entry2);
                     });
-                } else if (e.data.split(":")[0] == "words") {
+                } else if (command == "words") {
                     var data = e.data.split(":")[1].split(",");
                     var i = 0;
                     words = data;
@@ -95,8 +104,9 @@
                         i++;
                     });
 
-                } else if (e.data.split(":")[0] == "start") {
-                    var data = e.data.split(":")[1];
+                } else if (command == "start") {
+                    var data = e.data.split(":")[1].split(",")[0];
+                    timer = parseInt(e.data.split(":")[1].split(",")[1]);
                     var entry = document.createElement("li");
                     entry.innerHTML = "<b>" + data + "</b> started drawing";
                     if (data == name) {
@@ -104,7 +114,7 @@
                     } else drawing = false;
                     document.getElementById("log").appendChild(entry);
                     ctx.clearRect(0, 0, w, h);
-                } else if (e.data.split(":")[0] == "win") {
+                } else if (command == "win") {
                     var data = e.data.split(":")[1];
                     var entry = document.createElement("li");
                     entry.innerHTML = `<b>${data} </b>  guessed correctly.`;
@@ -119,9 +129,10 @@
                     document.getElementById("scoreboard").innerHTML = "";
                     data.forEach(element => {
                         var entry = document.createElement("li");
-                        entry.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        entry.innerHTML = `<b>${element.Name}</b> ${element.Score} `;
                         var entry2 = document.createElement("li");
-                        entry2.innerHTML = `<b>${element.Name}</b> ${element.Score}`;
+                        entry2.innerHTML =
+                            `<b>${element.Name}</b> ${element.Score} <button onclick="kick('${element.Name}')">KICK</button>`;
                         document.getElementById("scoreboard").appendChild(entry2);
                         document.getElementById("log").appendChild(entry);
                     });
@@ -130,10 +141,20 @@
                     console.log(data);
                 } else if (e.data == "clear") {
                     ctx.clearRect(0, 0, w, h);
-                } else if (e.data.split(":")[0] == "hint") {
+                } else if (command == "hint") {
                     if (!drawing) {
                         document.getElementById("word").innerText = e.data.split(":").slice(1).join(":")
                     }
+                } else if (command == "kicked") {
+                    var parts = e.data.split(":")[1].split(",")
+                    var element = document.createElement("li");
+                    element.innerHTML = `<b>${parts[0]}</b> kicked <b>${parts[1]}</b>`;
+                    document.getElementById("log").appendChild(element);
+                } else if (command == "choosing") {
+                    var user = e.data.split(":")[1]
+                    var element = document.createElement("li");
+                    element.innerHTML = `<b>${user}</b> is choosing...`;
+                    document.getElementById("log").appendChild(element);
                 }
             }
 
@@ -175,9 +196,15 @@
             else y = document.getElementById("diameterRange").value;
 
         }
-        function colorcustom(obj){
-            x= obj.value;
+
+        function colorcustom(obj) {
+            x = obj.value;
         }
+
+        function kick(name) {
+            socket.send(`kick:${name}`);
+        }
+
         function draw() {
             if (drawing) {
                 ctx.beginPath();
@@ -222,7 +249,14 @@
         }
 
         function create() {
-            socket.send(`create:${prompt("Timeout?")},${prompt("Language?","en")},${prompt("code?")}`);
+            socket.send(
+                `create:${document.getElementById("timeout").value},${document.getElementById("lang").value},${document.getElementById("code").value}`
+            );
+            document.getElementById("config").style = "display:none";
+        }
+
+        function openCreate() {
+            document.getElementById("config").style = "display:block";
         }
 
         function start() {
@@ -241,8 +275,8 @@
             if (res == 'down') {
                 prevX = currX;
                 prevY = currY;
-                currX = e.clientX - canvas.offsetLeft;
-                currY = e.clientY - canvas.offsetTop;
+                currX = e.pageX - canvas.offsetLeft;
+                currY = e.pageY - canvas.offsetTop;
 
                 flag = true;
                 dot_flag = true;
@@ -261,8 +295,8 @@
                 if (flag) {
                     prevX = currX;
                     prevY = currY;
-                    currX = e.clientX - canvas.offsetLeft;
-                    currY = e.clientY - canvas.offsetTop;
+                    currX = e.pageX - canvas.offsetLeft;
+                    currY = e.pageY - canvas.offsetTop;
                     draw();
                 }
             }
@@ -292,7 +326,7 @@
 </head>
 
 <body onload="init()">
-    <h1>Zeichenbrett</h1>
+    <h1>Zeichenbrett <small id="timer">NOT started</small></h1>
     <div class="row">
         <div class="column">
             <canvas id="can" width="1000" height="800" style="border:2px solid;"></canvas>
@@ -306,9 +340,8 @@
                     <div class="button" style="background:orange;" id="orange" onclick="color(this)"></div>
                     <div class="button" style="background:black;" id="black" onclick="color(this)"></div>
                     <div>
-                        <input type="color" id="custom" name="color"
-                               value="#000" class="button" style="width:62.22px" onchange="colorcustom(this)"></div>
-                    <div class="button">Eraser</div>
+                        <input type="color" id="custom" name="color" value="#000" class="button" style="width:62.22px"
+                            onchange="colorcustom(this)"></div>
                     <div class="button" style="background:white;border:4px solid;" id="white" onclick="color(this)">
                     </div>
 
@@ -322,8 +355,20 @@
 
             <input type="button" value="clear" id="clr" size="23" onclick="erase()">
             <button onclick="join()">Join</button>
-            <button onclick="create()">create</button>
+            <button onclick="openCreate()">create</button>
             <button onclick="start()">Start</button>
+            <div id="config" style="display:none">
+                <label for="timeout">Time</label>
+                <input type="number" name="timeout" id="timeout" value="80">
+                <label for="code">Code</label>
+                <input type="text" name="code" id="code" placeholder="Something Random">
+                <label for="lang">Sprache</label>
+                <select id="lang" name="lang">
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                </select>
+                <button onclick="create()"> Create!</button>
+            </div>
             <h3>Word:<span id="word" style="letter-spacing: 10px;"></span></h3>
             <div>
                 <h2>Scoreboard</h2>
@@ -334,7 +379,7 @@
                 <button id="w1" onclick="select(1)">WORD2</button>
                 <button id="w2" onclick="select(2)">WORD3</button></div>
             <span>Log:</span>
-            <dl id="log" style="height: 600px;overflow-y: scroll;">
+            <dl id="log" style="height: 40%;overflow-y: scroll;">
             </dl>
             <input id="guess" type="text" style="width:100%"></input>
         </div>
