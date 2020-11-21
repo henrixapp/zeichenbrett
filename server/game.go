@@ -76,7 +76,17 @@ func loadWords(filename string) ([]string, error) {
 	var txtlines []string
 
 	for scanner.Scan() {
-		txtlines = append(txtlines, scanner.Text())
+		word := scanner.Text()
+		if strings.HasSuffix(word, "#i") {
+			continue
+		}
+
+		//Since not all words use the tag system, we can just instantly return for words that don't use it.
+		lastIndexNumberSign := strings.LastIndex(word, "#")
+		if lastIndexNumberSign != -1 {
+			word = word[:lastIndexNumberSign]
+		}
+		txtlines = append(txtlines, word)
 	}
 	return txtlines, nil
 }
