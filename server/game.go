@@ -207,7 +207,7 @@ func (g *Game) NewGuess(user string, word string) (string, bool, bool, bool) {
 			if r.IsWinner(user) || user == r.Drawer {
 				return word, false, true, false
 			}
-			if word == r.GuessWord {
+			if strings.ToLower(word) == strings.ToLower(r.GuessWord) {
 				log.Println("word guessed")
 				r.Winners = append(r.Winners, Guess{Text: word, Time: time.Now(), Player: user})
 				if len(r.Winners) == len(g.Players)-1 {
