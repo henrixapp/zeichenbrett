@@ -54,12 +54,25 @@
             canvas.addEventListener("mouseout", function (e) {
                 findxy('out', e)
             }, false);
+
+            canvas.addEventListener("touchmove", function (e) {
+                findxy('move', e,true)
+            }, false);
+            canvas.addEventListener("touchdown", function (e) {
+                findxy('down', e,true)
+            }, false);
+            canvas.addEventListener("touchup", function (e) {
+                findxy('up', e,true)
+            }, false);
+            canvas.addEventListener("touchout", function (e) {
+                findxy('out', e, true)
+            }, false);
             initSocket();
             document.getElementById("guess").addEventListener('keyup', onkeyupListener);
         }
 
         function initSocket() {
-            socket = new WebSocket("ws://localhost:8787/socket");
+            socket = new WebSocket("ws://192.168.2.141:8787/socket");
             socket.onmessage = (e) => {
                 console.log(e.data);
                 var command = e.data.split(":")[0];
@@ -271,13 +284,24 @@
             document.getElementById("word").innerText = words[i];
         }
 
-        function findxy(res, e) {
+        function findxy(res, e,ipad) {
+            e.preventDefault();
             if (res == 'down') {
                 prevX = currX;
                 prevY = currY;
                 currX = e.pageX - canvas.offsetLeft;
                 currY = e.pageY - canvas.offsetTop;
+                //ipad 
+                if(ipad)
+                for (var i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].touchType === "stylus") {
+                        //   console.log("x coordinate: " + e.touches[i].clientX);
+                        //  console.log("y coordinate: " + e.touches[i].clientY);
 
+                        currX = e.touches[i].pageX - canvas.offsetLeft;
+                        currY = e.touches[i].pageY - canvas.offsetTop;
+                    }
+                }
                 flag = true;
                 dot_flag = true;
                 if (dot_flag) {
@@ -297,6 +321,17 @@
                     prevY = currY;
                     currX = e.pageX - canvas.offsetLeft;
                     currY = e.pageY - canvas.offsetTop;
+                     //ipad 
+                     if(ipad)
+                for (var i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].touchType === "stylus") {
+                        //   console.log("x coordinate: " + e.touches[i].clientX);
+                        //  console.log("y coordinate: " + e.touches[i].clientY);
+
+                        currX = e.touches[i].pageX - canvas.offsetLeft;
+                        currY = e.touches[i].pageY - canvas.offsetTop;
+                    }
+                }
                     draw();
                 }
             }
@@ -322,6 +357,9 @@
             /* 0.2 seconds transition on hover */
             transition: opacity .2s;
         }
+        canvas {
+      touch-action: none;
+    }
     </style>
 </head>
 
